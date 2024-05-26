@@ -1,3 +1,4 @@
 
 settings.py
 credentials.dat
+*.json
