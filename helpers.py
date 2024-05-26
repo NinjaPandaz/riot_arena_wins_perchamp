@@ -1,10 +1,14 @@
 import requests
+import json
+import os
 from urllib.parse import urlencode
 import settings
 import pandas as pd
 import gspread
-from oauth2client.client import OAuth2Credentials
-from oauth2client.client import OAuth2WebServerFlow
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+import google.auth
 from time import strftime, localtime
 
 
@@ -110,27 +114,35 @@ def win_percent_of_last_20_games(puuid=settings.PUUID, region=settings.DEFAULT_R
 
 def export_wins_to_google_sheets(wins, spreadsheet_name='League Arena Wins'):
     try:
-        # Define your OAuth2.0 Client credentials
-        client_id = '731446866332-kidgcno3e5sfi9uk84bgahpo5m8tjdgc.apps.googleusercontent.com'
-        client_secret = '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'
-        redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
+        # Define the scopes
+        SCOPES = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
 
-        # Create OAuth2.0 Web Server Flow
-        flow = OAuth2WebServerFlow(client_id, client_secret, scope='https://spreadsheets.google.com/feeds https://www.googleapis.com/auth/drive', redirect_uri=redirect_uri)
+        # Path to the token and credentials files
+        creds_path = 'credentials.json'
+        token_path = 'token.json'
 
-        # Get authorization URL
-        auth_uri = flow.step1_get_authorize_url()
+        creds = None
 
-        # Print authorization URL and prompt user to authorize
-        print('Please go to the following URL and authorize access:')
-        print(auth_uri)
-        auth_code = input('Enter the authorization code: ')
+        # Check if the token file exists
+        if os.path.exists(token_path):
+            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
 
-        # Exchange authorization code for credentials
-        credentials = flow.step2_exchange(auth_code)
+        # If there are no (valid) credentials available, let the user log in
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
+                creds = flow.run_local_server(port=0)
+            # Save the credentials for the next run
+            with open(token_path, 'w') as token_file:
+                token_file.write(creds.to_json())
 
         # Authorize the client
-        client = gspread.authorize(credentials)
+        client = gspread.authorize(creds)
 
         # Create a new Google Sheets spreadsheet or open an existing one
         try:
@@ -142,8 +154,11 @@ def export_wins_to_google_sheets(wins, spreadsheet_name='League Arena Wins'):
         worksheet = spreadsheet.sheet1
 
         # Retrieve existing data from the worksheet
-        expected_header = ['Win', 'Champion Name', 'Match ID', 'Placement', 'Start Time', 'Kills', 'Assists', 'Deaths', 'KDA', 'DPM', 'Total Healed', 'Healing to Others',
-                           'CC Time', 'Augment 1 ID', 'Augment 2 ID', 'Augment 3 ID', 'Augment 4 ID',]
+        expected_header = [
+            'Win', 'Champion Name', 'Match ID', 'Placement', 'Start Time', 'Kills', 'Assists', 'Deaths', 
+            'KDA', 'DPM', 'Total Healed', 'Healing to Others', 'CC Time', 'Augment 1 ID', 'Augment 2 ID', 
+            'Augment 3 ID', 'Augment 4 ID'
+        ]
         existing_data = worksheet.get_all_records(head=1, default_blank='')
 
         # Extract existing MatchIds
@@ -155,10 +170,25 @@ def export_wins_to_google_sheets(wins, spreadsheet_name='League Arena Wins'):
         for win_data in wins:
             print("Win data:", win_data)
             if 'MatchID' in win_data and win_data['MatchID'] not in existing_match_ids:
-                row_data = [win_data.get('Win', ''),win_data.get('MatchID', ''), win_data.get('ChampionName', ''), win_data.get('Placement', ''), win_data.get('StartTime', ''),
-                             win_data.get('Kills', ''), win_data.get('Assists', ''), win_data.get('Deaths', ''), win_data.get('KDA', ''), win_data.get('DPM', ''),
-                              win_data.get('TotalHealed', ''), win_data.get('HealingOthers', ''), win_data.get('ccTime', ''), win_data.get('Augment 1', ''), win_data.get('Augment 2', ''), win_data.get('Augment 3', ''),
-                               win_data.get('Augment 4', ''),]
+                row_data = [
+                    win_data.get('Win', ''),
+                    win_data.get('MatchID', ''),
+                    win_data.get('ChampionName', ''),
+                    win_data.get('Placement', ''),
+                    win_data.get('StartTime', ''),
+                    win_data.get('Kills', ''),
+                    win_data.get('Assists', ''),
+                    win_data.get('Deaths', ''),
+                    win_data.get('KDA', ''),
+                    win_data.get('DPM', ''),
+                    win_data.get('TotalHealed', ''),
+                    win_data.get('HealingOthers', ''),
+                    win_data.get('ccTime', ''),
+                    win_data.get('Augment 1', ''),
+                    win_data.get('Augment 2', ''),
+                    win_data.get('Augment 3', ''),
+                    win_data.get('Augment 4', '')
+                ]
                 worksheet.append_row(row_data)
                 print(f"Data appended for Match ID: {win_data['MatchID']}")
             else:
