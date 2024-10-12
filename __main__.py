@@ -5,14 +5,14 @@ summoner = get_summoner_info(PUUID)
 print(summoner)
 #print(summoner['summonerLevel'])
 
-summoner_match_ids = get_match_ids_by_summoner_puuid(summoner['puuid'], 25)
+summoner_match_ids = get_match_ids_by_summoner_puuid(summoner['puuid'], 100)
 print(summoner_match_ids)
 
 #win = did_player_win_match_arena(PUUID,summoner_match_ids[0])
 #print(win)
 
 
-match_ids = get_match_ids_by_summoner_puuid(summoner['puuid'], 25)
+match_ids = get_match_ids_by_summoner_puuid(summoner['puuid'], 100)
 wins = did_player_win_match_arena(summoner['puuid'], match_ids)
 print(wins)
 export_wins_to_google_sheets(wins)

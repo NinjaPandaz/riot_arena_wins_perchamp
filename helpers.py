@@ -70,31 +70,30 @@ def did_player_win_match_arena(puuid=settings.PUUID, match_ids=None, region=sett
         try:
             if 'info' in match_data and 'metadata' in match_data:
                 game_mode = match_data['info']['gameMode']
-                time_of_game = match_data['info']['gameStartTimestamp']
-                if game_mode == 'CHERRY':  #Cherry is the code name for the arena gamemode in patch 14.9x + 
-                    if puuid in match_data['metadata']['participants']:
-                        player_index = match_data['metadata']['participants'].index(puuid)
-                        player_info = match_data['info']['participants'][player_index]
-                        champion_name = player_info['championName']
-                        placement_info = player_info['placement']
-                        abilities_used_info = player_info['challenges']['abilityUses']
-                        dpm_info = player_info['challenges']['damagePerMinute']
-                        kills_info = player_info['kills']
-                        assists_info = player_info['assists']
-                        deaths_info = player_info['deaths']
-                        kda_info = player_info['challenges']['kda']
-                        augment1 = player_info['playerAugment1']
-                        augment2 = player_info['playerAugment2']
-                        augment3 = player_info['playerAugment3']
-                        augment4 = player_info['playerAugment4']
-                        total_healed = player_info['totalHeal']
-                        healing_to_others = player_info['totalHealsOnTeammates']
-                        game_start = strftime('%Y-%m-%d %H:%M:%S', localtime((time_of_game/1000)))
-                        cc_time = player_info['timeCCingOthers']
-                        wins.append({'Win':player_info['win'], 'ChampionName': champion_name, 'MatchID': match_id, 'Placement': placement_info, 'StartTime': game_start, 
-                                     'AbilitiesUsed': abilities_used_info, 'DPM': dpm_info, 'Kills': kills_info, 'Assists': assists_info, 'Deaths': deaths_info, 'KDA': kda_info,
-                                     'Augment 1': augment1, 'Augment 2': augment2, 'Augment 3': augment3, 'Augment 4': augment4, 'TotalHealed': total_healed, 'HealingOthers': healing_to_others,
-                                     'ccTime': cc_time})
+                time_of_game = match_data['info']['gameStartTimestamp'] 
+                if puuid in match_data['metadata']['participants']:
+                    player_index = match_data['metadata']['participants'].index(puuid)
+                    player_info = match_data['info']['participants'][player_index]
+                    champion_name = player_info['championName']
+                    placement_info = player_info['placement']
+                    abilities_used_info = player_info['challenges']['abilityUses']
+                    dpm_info = player_info['challenges']['damagePerMinute']
+                    kills_info = player_info['kills']
+                    assists_info = player_info['assists']
+                    deaths_info = player_info['deaths']
+                    kda_info = player_info['challenges']['kda']
+                    augment1 = player_info['playerAugment1']
+                    augment2 = player_info['playerAugment2']
+                    augment3 = player_info['playerAugment3']
+                    augment4 = player_info['playerAugment4']
+                    total_healed = player_info['totalHeal']
+                    healing_to_others = player_info['totalHealsOnTeammates']
+                    game_start = strftime('%Y-%m-%d %H:%M:%S', localtime((time_of_game/1000)))
+                    cc_time = player_info['timeCCingOthers']
+                    wins.append({'Win':player_info['win'], 'Champion Name': champion_name, 'Match ID': match_id, 'Placement': placement_info, 'Start Time': game_start, 
+                                'Abilities Used': abilities_used_info, 'DPM': dpm_info, 'Kills': kills_info, 'Assists': assists_info, 'Deaths': deaths_info, 'KDA': kda_info,
+                                #'Augment 1 ID': augment1, #'Augment 2 ID': augment2, #'Augment 3 ID': augment3, #'Augment 4 ID': augment4, 
+                                'Total Healed': total_healed, 'Healing Others': healing_to_others, 'CC Time': cc_time, 'Game Mode': game_mode})
         except KeyError as e:
             print(f"KeyError: {e} while processing match id {match_id}")
             continue
@@ -112,7 +111,7 @@ def win_percent_of_last_20_games(puuid=settings.PUUID, region=settings.DEFAULT_R
 
     return (wins/len(matches))*100
 
-def export_wins_to_google_sheets(wins, spreadsheet_name='League Arena Wins'):
+def export_wins_to_google_sheets(wins, spreadsheet_name='League Match Data'):
     try:
         # Define the scopes
         SCOPES = [
@@ -155,9 +154,9 @@ def export_wins_to_google_sheets(wins, spreadsheet_name='League Arena Wins'):
 
         # Retrieve existing data from the worksheet
         expected_header = [
-            'Win', 'Champion Name', 'Match ID', 'Placement', 'Start Time', 'Kills', 'Assists', 'Deaths', 
-            'KDA', 'DPM', 'Total Healed', 'Healing to Others', 'CC Time', 'Augment 1 ID', 'Augment 2 ID', 
-            'Augment 3 ID', 'Augment 4 ID'
+            'Win', 'Match ID' ,'Champion Name', 'Placement', 'Start Time', 'Kills', 'Assists', 'Deaths', 
+            'KDA', 'DPM', 'Total Healed', 'Healing Others', 'CC Time', 'Game Mode'
+            #'Augment 1 ID', 'Augment 2 ID', 'Augment 3 ID', 'Augment 4 ID'
         ]
         existing_data = worksheet.get_all_records(head=1, default_blank='')
 
@@ -169,30 +168,31 @@ def export_wins_to_google_sheets(wins, spreadsheet_name='League Arena Wins'):
         # Append new data that isn't already in the spreadsheet based on MatchId
         for win_data in wins:
             print("Win data:", win_data)
-            if 'MatchID' in win_data and win_data['MatchID'] not in existing_match_ids:
+            if 'Match ID' in win_data and win_data['Match ID'] not in existing_match_ids:
                 row_data = [
-                    win_data.get('Win', ''),
-                    win_data.get('MatchID', ''),
-                    win_data.get('ChampionName', ''),
-                    win_data.get('Placement', ''),
-                    win_data.get('StartTime', ''),
-                    win_data.get('Kills', ''),
-                    win_data.get('Assists', ''),
-                    win_data.get('Deaths', ''),
-                    win_data.get('KDA', ''),
-                    win_data.get('DPM', ''),
-                    win_data.get('TotalHealed', ''),
-                    win_data.get('HealingOthers', ''),
-                    win_data.get('ccTime', ''),
-                    win_data.get('Augment 1', ''),
-                    win_data.get('Augment 2', ''),
-                    win_data.get('Augment 3', ''),
-                    win_data.get('Augment 4', '')
+                    win_data.get(header, '') for header in expected_header
+                    # win_data.get('Win', ''),
+                    # win_data.get('MatchID', ''),
+                    # win_data.get('ChampionName', ''),
+                    # win_data.get('Placement', ''),
+                    # win_data.get('StartTime', ''),
+                    # win_data.get('Kills', ''),
+                    # win_data.get('Assists', ''),
+                    # win_data.get('Deaths', ''),
+                    # win_data.get('KDA', ''),
+                    # win_data.get('DPM', ''),
+                    # win_data.get('TotalHealed', ''),
+                    # win_data.get('HealingOthers', ''),
+                    # win_data.get('ccTime', ''),
+                    # win_data.get('Augment 1', ''),
+                    # win_data.get('Augment 2', ''),
+                    # win_data.get('Augment 3', ''),
+                    # win_data.get('Augment 4', '')
                 ]
                 worksheet.append_row(row_data)
-                print(f"Data appended for Match ID: {win_data['MatchID']}")
+                print(f"Data appended for Match ID: {win_data['Match ID']}")
             else:
-                print(f"Match ID {win_data['MatchID']} already exists in the spreadsheet.")
+                print(f"Match ID {win_data['Match ID']} already exists in the spreadsheet.")
 
         print(f"Data has been successfully exported to '{spreadsheet_name}' Google Sheets.")
 
